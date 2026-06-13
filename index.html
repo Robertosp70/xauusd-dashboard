@@ -6,30 +6,29 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
-    <div id="chart" style="width: 100%; height: 500px;"></div>
+    <h1>Verificación de Diagnóstico</h1>
+    <div id="chart" style="width: 100%; height: 500px; border: 1px solid red;"></div>
 
     <script>
-        // Verificamos si la librería cargó correctamente
-        if (typeof LightweightCharts === 'undefined') {
-            document.body.innerHTML = "<h1>Error: La librería no cargó.</h1>";
-        } else {
-            const chartOptions = { 
-                layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#d1d4dc' },
-                width: window.innerWidth - 40,
-                height: 500
-            };
+        window.addEventListener('load', () => {
+            const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+                width: 600, height: 400
+            });
             
-            const chart = LightweightCharts.createChart(document.getElementById('chart'), chartOptions);
+            // DIAGNÓSTICO: Vamos a ver qué contiene realmente el objeto chart
+            console.log("Contenido del objeto chart:", Object.keys(chart));
             
-            // Acceso directo a la función de serie de velas
-            const candleSeries = chart.addCandlestickSeries();
-            
-            candleSeries.setData([
-                { time: '2026-06-10', open: 2340, high: 2350, low: 2330, close: 2345 },
-                { time: '2026-06-11', open: 2345, high: 2360, low: 2340, close: 2355 },
-                { time: '2026-06-12', open: 2355, high: 2370, low: 2350, close: 2365 }
-            ]);
-        }
+            // Intentamos acceder de forma distinta
+            if (typeof chart.addCandlestickSeries === 'function') {
+                const candleSeries = chart.addCandlestickSeries();
+                candleSeries.setData([
+                    { time: '2026-06-10', open: 2340, high: 2350, low: 2330, close: 2345 },
+                    { time: '2026-06-11', open: 2345, high: 2360, low: 2340, close: 2355 }
+                ]);
+            } else {
+                document.body.innerHTML += "<h2 style='color:red'>El objeto chart existe, pero NO tiene la función addCandlestickSeries.</h2>";
+            }
+        });
     </script>
 </body>
 </html>
