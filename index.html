@@ -1,33 +1,7 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>XAUUSD Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.0/lightweight-charts.standalone.production.js"></script>
-</head>
-<body style="background-color: #0c0d14; color: white; padding: 20px;">
-
-    <div id="panel" style="background: #161a25; padding: 20px; border: 1px solid #ff0000; margin-bottom: 20px;">
-        <h2 style="color: white;">Sugerencia: COMPRA</h2>
-        <p>SL: 2340 | TP: 2380</p>
-    </div>
-
-    <div id="chart" style="width: 100%; height: 400px; background: #161a25; border: 1px solid #00ff00;"></div>
-
-    <script>
-        window.addEventListener('load', () => {
-            console.log("Cargando gráfico...");
-            const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-                width: document.getElementById('chart').clientWidth,
-                height: 400,
-                layout: { background: { type: 'solid', color: '#161a25' }, textColor: 'white' }
-            });
-            const candleSeries = chart.addCandlestickSeries();
-            candleSeries.setData([
-                { time: '2026-06-10', open: 2340, high: 2350, low: 2330, close: 2345 },
-                { time: '2026-06-11', open: 2345, high: 2360, low: 2340, close: 2355 }
-            ]);
-        });
-    </script>
+<html>
+<body>
+    <h1 style="color: blue;">¡ESTO ES UNA PRUEBA DE DIAGNÓSTICO!</h1>
+    <p>Si ves este mensaje, es que el archivo index.html anterior está siendo ignorado por el servidor de GitHub.</p>
 </body>
 </html>
