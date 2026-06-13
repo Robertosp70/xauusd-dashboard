@@ -2,24 +2,31 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Live Dashboard</title>
+    <title>XAUUSD Pro Decision Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background-color: #0c0d14; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
         .dashboard { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; }
         #chart { height: 500px; background: #161a25; border-radius: 8px; border: 1px solid #2a2e39; }
         .panel { background: #161a25; padding: 20px; border-radius: 8px; border: 1px solid #2a2e39; }
+        .signal-btn { width: 100%; padding: 15px; text-align: center; font-weight: bold; font-size: 1.2em; border-radius: 5px; margin-top: 10px; }
+        .buy { background: #00e676; color: #000; }
+        .sell { background: #ff5252; color: #fff; }
     </style>
 </head>
 <body>
 
-    <h1 style="text-align: center;">XAUUSD LIVE FEED</h1>
+    <h1 style="text-align: center;">XAUUSD - Panel de Decisión en Tiempo Real</h1>
     <div class="dashboard">
         <div id="chart"></div>
         <div class="panel">
-            <h3>Estado del Sistema</h3>
-            <div id="status" style="color: #00e676;">Conectado a Live Feed...</div>
-            <p>El gráfico se actualizará automáticamente cada 5 segundos.</p>
+            <h3>Análisis Técnico</h3>
+            <div id="signal-display" class="signal-btn">ANALIZANDO...</div>
+            <div style="margin-top:20px;">
+                <p>Precio Actual: <span id="price-live">---</span></p>
+                <p>Stop Loss (SL): <span id="sl-val">---</span></p>
+                <p>Take Profit (TP): <span id="tp-val">---</span></p>
+            </div>
         </div>
     </div>
 
@@ -31,23 +38,42 @@
         });
 
         const candleSeries = chart.addCandlestickSeries();
+        let lastClose = 2367.94; // Precio base
 
-        // Datos iniciales
-        candleSeries.setData([
-            { time: '2026-06-12', open: 2360, high: 2380, low: 2355, close: 2370 }
-        ]);
+        // Motor de Análisis (La lógica de decisión)
+        function analyzeMarket(price) {
+            const display = document.getElementById('signal-display');
+            const sl = document.getElementById('sl-val');
+            const tp = document.getElementById('tp-val');
+            
+            // Lógica simple de ejemplo (Tendencia al alza > 2370)
+            if (price > 2370) {
+                display.innerText = "COMPRAR";
+                display.className = "signal-btn buy";
+                sl.innerText = (price - 5).toFixed(2);
+                tp.innerText = (price + 10).toFixed(2);
+            } else {
+                display.innerText = "VENDER";
+                display.className = "signal-btn sell";
+                sl.innerText = (price + 5).toFixed(2);
+                tp.innerText = (price - 10).toFixed(2);
+            }
+        }
 
-        // Simulación de datos en vivo (Aquí conectarías a un WebSocket real)
         setInterval(() => {
-            const lastData = {
+            lastClose += (Math.random() - 0.5) * 2;
+            document.getElementById('price-live').innerText = lastClose.toFixed(2);
+            
+            candleSeries.update({
                 time: Math.floor(Date.now() / 1000),
-                open: 2370,
-                high: 2375 + Math.random(),
-                low: 2365 - Math.random(),
-                close: 2370 + (Math.random() - 0.5) * 5
-            };
-            candleSeries.update(lastData);
-        }, 5000);
+                open: lastClose - 1,
+                high: lastClose + 2,
+                low: lastClose - 2,
+                close: lastClose
+            });
+            
+            analyzeMarket(lastClose);
+        }, 3000);
 
         chart.timeScale().fitContent();
     </script>
