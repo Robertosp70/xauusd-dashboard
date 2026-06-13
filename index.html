@@ -2,37 +2,41 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Dashboard Final</title>
-    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <title>XAUUSD Dashboard - Carga Dinámica</title>
 </head>
-<body>
+<body style="background-color: #0c0d14; color: white;">
     <div id="chart" style="width: 100%; height: 500px;"></div>
 
     <script>
-        window.addEventListener('load', () => {
+        // Función para cargar la librería dinámicamente
+        function loadScript(url, callback) {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload = callback;
+            document.head.appendChild(script);
+        }
+
+        // Cargar librería desde un CDN diferente (Cloudflare)
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.0/lightweight-charts.standalone.production.js', () => {
             try {
-                // Forzamos la creación del objeto
+                // Ahora que sabemos que la librería cargó, ejecutamos la creación
                 const chart = LightweightCharts.createChart(document.getElementById('chart'), {
                     width: 800,
-                    height: 500
+                    height: 500,
+                    layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#d1d4dc' }
                 });
 
-                // Diagnóstico profundo: buscamos la función en todo el prototipo del objeto
-                const proto = Object.getPrototypeOf(chart);
-                const hasMethod = typeof chart.addCandlestickSeries === 'function';
-
-                if (hasMethod) {
-                    const candleSeries = chart.addCandlestickSeries();
-                    candleSeries.setData([
-                        { time: '2026-06-10', open: 2340, high: 2350, low: 2330, close: 2345 },
-                        { time: '2026-06-11', open: 2345, high: 2360, low: 2340, close: 2355 }
-                    ]);
-                } else {
-                    document.body.innerHTML = "<h1>Error: La API de TradingView no es compatible en este navegador.</h1>";
-                    console.log("Prototipo del objeto chart:", Object.getOwnPropertyNames(proto));
-                }
+                const candleSeries = chart.addCandlestickSeries();
+                
+                candleSeries.setData([
+                    { time: '2026-06-10', open: 2340, high: 2350, low: 2330, close: 2345 },
+                    { time: '2026-06-11', open: 2345, high: 2360, low: 2340, close: 2355 }
+                ]);
+                
+                console.log("Gráfico renderizado con éxito");
             } catch (err) {
-                document.body.innerHTML = "<h1>Error crítico: " + err.message + "</h1>";
+                console.error("Error al renderizar:", err);
+                document.body.innerHTML = "<h1>Error: " + err.message + "</h1>";
             }
         });
     </script>
