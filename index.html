@@ -1,71 +1,19 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>XAUUSD Live Pro</title>
-    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
-    <style>
-        body { background-color: #0c0d14; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
-        .grid { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; }
-        #chart { height: 500px; background: #161a25; border-radius: 8px; border: 1px solid #2a2e39; }
-        .panel { background: #161a25; padding: 20px; border-radius: 8px; border: 1px solid #2a2e39; }
-        .btn { padding: 15px; width: 100%; font-weight: bold; text-align: center; border-radius: 5px; margin-top: 10px; }
-    </style>
-</head>
-<body>
+// REEMPLAZA TU BLOQUE SCRIPT ACTUAL POR ESTA ESTRUCTURA
 
-    <h1 style="text-align: center;">XAUUSD - PRECIO EN TIEMPO REAL</h1>
-    <div class="grid">
-        <div id="chart"></div>
-        <div class="panel">
-            <h3>Análisis Técnico</h3>
-            <div id="signal" class="btn" style="background:#444;">ESPERANDO DATOS...</div>
-            <p>Precio Actual: <span id="price">---</span></p>
-        </div>
-    </div>
+async function getXAUPrice() {
+    const apiKey = 'R0112E15SLBWSGP8'; // Aquí pones la llave que te den
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XAUUSD&apikey=${apiKey}`;
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    const price = parseFloat(data['Global Quote']['05. price']);
+    
+    // Actualizar pantalla
+    document.getElementById('price-live').innerText = price.toFixed(2);
+    // Aquí disparas tu lógica de análisis
+}
 
-    <script>
-        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-            width: document.getElementById('chart').clientWidth,
-            height: 500,
-            layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#d1d4dc' }
-        });
-
-        const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350' });
-
-        // Conexión a Binance para obtener el precio del Oro (XAU/USDT)
-        async function fetchRealPrice() {
-            try {
-                // Binance API para el par BTC/USDT (como ejemplo, ya que el oro puro requiere API premium)
-                const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
-                const data = await response.json();
-                const price = parseFloat(data.price);
-                
-                document.getElementById('price').innerText = price.toFixed(2);
-                
-                // Actualizar gráfico con datos reales
-                candleSeries.update({
-                    time: Math.floor(Date.now() / 1000),
-                    open: price - 10,
-                    high: price + 20,
-                    low: price - 20,
-                    close: price
-                });
-
-                // Lógica de decisión simple
-                const signal = document.getElementById('signal');
-                if(price % 2 === 0) {
-                    signal.innerText = "COMPRA";
-                    signal.style.background = "#00e676";
-                } else {
-                    signal.innerText = "VENTA";
-                    signal.style.background = "#ff5252";
-                }
-            } catch(e) { console.error("Error al conectar:", e); }
-        }
-
-        setInterval(fetchRealPrice, 2000);
-        chart.timeScale().fitContent();
-    </script>
-</body>
-</html>
+async function getGoldNews() {
+    // Aquí integraríamos una API de noticias
+    // El resultado se inyectaría en un div con id="news-container"
+}
