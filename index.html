@@ -2,34 +2,24 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Pro Dashboard</title>
+    <title>XAUUSD Live Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background-color: #0c0d14; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
-        .dashboard-grid { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .dashboard { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; }
         #chart { height: 500px; background: #161a25; border-radius: 8px; border: 1px solid #2a2e39; }
         .panel { background: #161a25; padding: 20px; border-radius: 8px; border: 1px solid #2a2e39; }
-        .signal-buy { background: #00e676; color: #000; padding: 15px; text-align: center; font-weight: bold; border-radius: 5px; margin: 10px 0; }
-        .news-item { font-size: 0.9em; border-bottom: 1px solid #2a2e39; padding: 10px 0; color: #aaa; }
     </style>
 </head>
 <body>
 
-    <h1 style="text-align: center;">XAUUSD Dashboard Estratégico</h1>
-    
-    <div class="dashboard-grid">
+    <h1 style="text-align: center;">XAUUSD LIVE FEED</h1>
+    <div class="dashboard">
         <div id="chart"></div>
-        
         <div class="panel">
-            <h3>Señal Actual</h3>
-            <div class="signal-buy">COMPRA FUERTE</div>
-            <p>SL: 2340.50 | TP: 2380.00</p>
-            
-            <h3>Últimas Noticias (Oro)</h3>
-            <div id="news-feed">
-                <div class="news-item">Fed mantiene tasas, oro reacciona al alza.</div>
-                <div class="news-item">Aumenta demanda de refugio en Asia.</div>
-            </div>
+            <h3>Estado del Sistema</h3>
+            <div id="status" style="color: #00e676;">Conectado a Live Feed...</div>
+            <p>El gráfico se actualizará automáticamente cada 5 segundos.</p>
         </div>
     </div>
 
@@ -37,21 +27,27 @@
         const chart = LightweightCharts.createChart(document.getElementById('chart'), {
             width: document.getElementById('chart').clientWidth,
             height: 500,
-            layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#d1d4dc' },
-            grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } }
+            layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#d1d4dc' }
         });
 
-        // Configuración de series
-        const candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350' });
-        
-        // Datos extendidos (Simulando una tendencia alcista)
+        const candleSeries = chart.addCandlestickSeries();
+
+        // Datos iniciales
         candleSeries.setData([
-            { time: '2026-06-08', open: 2320, high: 2335, low: 2315, close: 2330 },
-            { time: '2026-06-09', open: 2330, high: 2345, low: 2325, close: 2340 },
-            { time: '2026-06-10', open: 2340, high: 2355, low: 2335, close: 2350 },
-            { time: '2026-06-11', open: 2350, high: 2365, low: 2345, close: 2360 },
             { time: '2026-06-12', open: 2360, high: 2380, low: 2355, close: 2370 }
         ]);
+
+        // Simulación de datos en vivo (Aquí conectarías a un WebSocket real)
+        setInterval(() => {
+            const lastData = {
+                time: Math.floor(Date.now() / 1000),
+                open: 2370,
+                high: 2375 + Math.random(),
+                low: 2365 - Math.random(),
+                close: 2370 + (Math.random() - 0.5) * 5
+            };
+            candleSeries.update(lastData);
+        }, 5000);
 
         chart.timeScale().fitContent();
     </script>
