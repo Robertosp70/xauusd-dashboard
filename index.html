@@ -2,37 +2,74 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Dashboard Pro</title>
+    <title>XAUUSD Pro Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.0/lightweight-charts.standalone.production.js"></script>
     <style>
-        body { background-color: #0c0d14; color: white; margin: 0; padding: 20px; font-family: sans-serif; }
+        body { background-color: #0c0d14; color: white; font-family: sans-serif; display: grid; grid-template-columns: 1fr 300px; gap: 20px; padding: 20px; }
         #chart { width: 100%; height: 500px; background: #161a25; border: 1px solid #2a2e39; }
+        .sidebar { background: #161a25; padding: 20px; border: 1px solid #2a2e39; border-radius: 8px; }
+        .signal { font-size: 24px; font-weight: bold; margin: 20px 0; padding: 10px; text-align: center; border-radius: 5px; }
+        .buy { background: #00e676; color: black; }
+        .sell { background: #ff5252; color: white; }
     </style>
 </head>
 <body>
-    <h1 style="color: #f0b90b;">XAUUSD Dashboard Pro</h1>
-    <div id="chart"></div>
+
+    <main>
+        <h1>XAUUSD Análisis en Vivo</h1>
+        <div id="chart"></div>
+    </main>
+
+    <aside class="sidebar">
+        <h3>Sugerencia Algorítmica</h3>
+        <div id="signal" class="signal">Analizando...</div>
+        <p>SL: <span id="sl">-</span></p>
+        <p>TP: <span id="tp">-</span></p>
+    </aside>
 
     <script>
         const chart = LightweightCharts.createChart(document.getElementById('chart'), {
             width: 800, height: 500,
-            layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#d1d4dc' },
-            grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } }
+            layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#d1d4dc' }
         });
 
         const candleSeries = chart.addCandlestickSeries();
+        const tramaLine = chart.addLineSeries({ color: '#3a76ff', lineWidth: 2 });
 
-        // Datos simulados de velas para el XAUUSD (Oro)
-        const data = [
-            { time: '2026-06-01', open: 2320, high: 2340, low: 2315, close: 2335 },
-            { time: '2026-06-05', open: 2335, high: 2355, low: 2330, close: 2350 },
-            { time: '2026-06-10', open: 2350, high: 2370, low: 2345, close: 2365 },
-            { time: '2026-06-13', open: 2365, high: 2380, low: 2355, close: 2375 }
-        ];
-        
+        // Generar datos históricos
+        let data = [];
+        let price = 2355;
+        let time = 1718000000;
+        for(let i=0; i<50; i++) {
+            price += (Math.random()-0.5)*10;
+            data.push({ time: time + (i*86400), open: price, high: price+5, low: price-5, close: price+(Math.random()-0.5)*5 });
+        }
         candleSeries.setData(data);
-        
-        // Ajuste automático de escala para que se vea bien
+
+        // Lógica TRAMA simplificada
+        const trama = data.map(d => ({ time: d.time, value: d.close - 2 }));
+        tramaLine.setData(trama);
+
+        // Motor de decisión
+        function updateSignal() {
+            let lastPrice = data[data.length-1].close;
+            let lastTrama = trama[trama.length-1].value;
+            let signalDiv = document.getElementById('signal');
+            
+            if (lastPrice > lastTrama) {
+                signalDiv.innerText = "COMPRA";
+                signalDiv.className = "signal buy";
+                document.getElementById('sl').innerText = (lastPrice - 5).toFixed(2);
+                document.getElementById('tp').innerText = (lastPrice + 10).toFixed(2);
+            } else {
+                signalDiv.innerText = "VENTA";
+                signalDiv.className = "signal sell";
+                document.getElementById('sl').innerText = (lastPrice + 5).toFixed(2);
+                document.getElementById('tp').innerText = (lastPrice - 10).toFixed(2);
+            }
+        }
+
+        updateSignal();
         chart.timeScale().fitContent();
     </script>
 </body>
