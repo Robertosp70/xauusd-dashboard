@@ -34,6 +34,7 @@
         const chart = LightweightCharts.createChart(document.getElementById('chart'), { layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#fff' } });
         const candleSeries = chart.addCandlestickSeries();
         let priceHistory = [], signalHistory = [], lastCandleTime = 0, totalPL = 0;
+        let localBars = []; // Array de control para evitar el error de librería
 
         const API_KEY = '9dabd1ea8afb4071bee53ee0552711ed';
         const SYMBOL = 'XAU/USD';
@@ -42,12 +43,12 @@
             try {
                 const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${SYMBOL}&interval=15min&outputsize=50&apikey=${API_KEY}`);
                 const data = await res.json();
-                const hist = data.values.reverse().map(i => ({
+                localBars = data.values.reverse().map(i => ({
                     time: Math.floor(new Date(i.datetime).getTime() / 1000),
                     open: parseFloat(i.open), high: parseFloat(i.high), low: parseFloat(i.low), close: parseFloat(i.close)
                 }));
-                candleSeries.setData(hist);
-                priceHistory = hist.map(c => c.close);
+                candleSeries.setData(localBars);
+                priceHistory = localBars.map(c => c.close);
                 setInterval(update, 10000);
             } catch(e) { console.error("Error inicializando:", e); }
         }
@@ -60,25 +61,27 @@
                 
                 const nowTimestamp = Math.floor(Date.now() / 1000);
                 const currentM15 = Math.floor(nowTimestamp / 900) * 900;
-                
-                const lastBar = candleSeries.data().slice(-1)[0];
+                let lastBar = localBars[localBars.length - 1];
 
                 if (lastBar && lastBar.time === currentM15) {
-                    candleSeries.update({
-                        time: lastBar.time, open: lastBar.open,
-                        high: Math.max(lastBar.high, price), low: Math.min(lastBar.low, price),
-                        close: price
-                    });
+                    lastBar.high = Math.max(lastBar.high, price);
+                    lastBar.low = Math.min(lastBar.low, price);
+                    lastBar.close = price;
+                    candleSeries.update(lastBar);
                 } else {
-                    candleSeries.update({ time: currentM15, open: price, high: price, low: price, close: price });
+                    const newBar = { time: currentM15, open: price, high: price, low: price, close: price };
+                    localBars.push(newBar);
+                    candleSeries.update(newBar);
                 }
 
+                // Lógica de estrategia
                 priceHistory.push(price);
                 if(priceHistory.length > 20) priceHistory.shift();
                 const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
                 const atr = Math.abs(price - (priceHistory[priceHistory.length-2] || price)) * 2;
                 const isBullish = price > trama;
                 
+                // UI y Bitácora
                 document.getElementById('signal-display').innerText = isBullish ? "COMPRA" : "VENTA";
                 document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
                 document.getElementById('price-val').innerText = "$" + price.toFixed(2);
