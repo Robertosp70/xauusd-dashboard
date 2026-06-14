@@ -1,72 +1,19 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>XAUUSD Dashboard Inteligente</title>
-    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
-    <style>
-        body { background-color: #0c0d14; color: #fff; font-family: sans-serif; padding: 20px; }
-        .dashboard-grid { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; max-width: 1400px; margin: 0 auto; }
-        #chart { height: 500px; background: #161a25; border-radius: 8px; border: 1px solid #2a2e39; }
-        .signal-box { font-size: 1.5em; font-weight: bold; padding: 20px; text-align: center; border-radius: 5px; transition: 0.5s; }
-        /* Alerta visual de alta probabilidad */
-        .high-probability { box-shadow: 0 0 20px #00e676; border: 2px solid #fff; }
-    </style>
-</head>
-<body>
+// Estructura para cálculo de TRAMA y Señales
+async function calculateStrategy(dataPoints) {
+    // 1. Calcular TRAMA (Media Móvil Adaptativa)
+    // La fórmula ajusta el peso según la volatilidad reciente
+    const trama = dataPoints.map((val, i) => {
+        // Lógica de suavizado TRAMA aquí
+        return val.close * 0.99; // Placeholder para el cálculo matemático
+    });
 
-    <h1 style="text-align: center;">Dashboard: Análisis Técnico + Sentimiento</h1>
-    <div class="dashboard-grid">
-        <div id="chart"></div>
-        <div class="panel">
-            <div id="signal-display" class="signal-box">ANALIZANDO...</div>
-            <div id="news-sentiment" style="margin-top:20px; font-style: italic; color: #aaa;"></div>
-        </div>
-    </div>
+    // 2. Ejecutar estrategia UAlgo
+    const lastPrice = dataPoints[dataPoints.length - 1].close;
+    const lastTrama = trama[trama.length - 1];
 
-    <script>
-        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-            width: document.getElementById('chart').clientWidth,
-            height: 500,
-            layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#fff' }
-        });
-        const candleSeries = chart.addCandlestickSeries();
-
-        async function processDashboard() {
-            // 1. Obtener precio real
-            const res = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XAUUSD&apikey=R0112E15SLBWSGP8`);
-            const data = await res.json();
-            const price = parseFloat(data['Global Quote']['05. price']);
-            
-            // 2. Lógica de Indicadores (TRAMA + UAlgo simplificado)
-            const ma = price * 0.995; 
-            const isBullish = price > ma;
-
-            // 3. Análisis de Sentimiento de Noticias
-            const news = "El oro actúa como refugio ante la incertidumbre económica."; // Esto vendría de la API
-            const isPositiveNews = news.includes("refugio") || news.includes("demanda");
-            
-            const signalBox = document.getElementById('signal-display');
-            
-            // 4. Decisión Visual
-            if (isBullish && isPositiveNews) {
-                signalBox.innerText = "COMPRA - ALTA PROBABILIDAD";
-                signalBox.className = "signal-box high-probability";
-                signalBox.style.backgroundColor = "#00e676";
-            } else if (isBullish) {
-                signalBox.innerText = "COMPRA";
-                signalBox.style.backgroundColor = "#00e676";
-            } else {
-                signalBox.innerText = "VENTA";
-                signalBox.style.backgroundColor = "#ff5252";
-            }
-            
-            document.getElementById('news-sentiment').innerText = "Sentimiento: " + (isPositiveNews ? "Alcista" : "Bajista");
-            candleSeries.update({ time: Math.floor(Date.now()/1000), open: price-1, high: price+1, low: price-1, close: price });
-        }
-
-        setInterval(processDashboard, 60000);
-        processDashboard();
-    </script>
-</body>
-</html>
+    if (lastPrice > lastTrama) {
+        return { signal: "COMPRA", sl: lastPrice * 0.99, tp: lastPrice * 1.02 };
+    } else {
+        return { signal: "VENTA", sl: lastPrice * 1.01, tp: lastPrice * 0.98 };
+    }
+}
