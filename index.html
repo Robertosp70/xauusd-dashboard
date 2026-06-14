@@ -39,61 +39,62 @@
         const SYMBOL = 'XAU/USD';
 
         async function init() {
-            const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${SYMBOL}&interval=15min&outputsize=50&apikey=${API_KEY}`);
-            const data = await res.json();
-            const hist = data.values.reverse().map(i => ({
-                time: Math.floor(new Date(i.datetime).getTime() / 1000),
-                open: parseFloat(i.open), high: parseFloat(i.high), low: parseFloat(i.low), close: parseFloat(i.close)
-            }));
-            candleSeries.setData(hist);
-            priceHistory = hist.map(c => c.close);
-            setInterval(update, 10000);
+            try {
+                const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${SYMBOL}&interval=15min&outputsize=50&apikey=${API_KEY}`);
+                const data = await res.json();
+                const hist = data.values.reverse().map(i => ({
+                    time: Math.floor(new Date(i.datetime).getTime() / 1000),
+                    open: parseFloat(i.open), high: parseFloat(i.high), low: parseFloat(i.low), close: parseFloat(i.close)
+                }));
+                candleSeries.setData(hist);
+                priceHistory = hist.map(c => c.close);
+                setInterval(update, 10000);
+            } catch(e) { console.error("Error inicializando:", e); }
         }
 
         async function update() {
-            const res = await fetch(`https://api.twelvedata.com/price?symbol=${SYMBOL}&apikey=${API_KEY}`);
-            const data = await res.json();
-            const price = parseFloat(data.price);
-            
-            // Gestión de velas dinámicas M15
-            const now = new Date();
-            const currentM15 = Math.floor(now.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000);
-            const bars = candleSeries.data();
-            const lastBar = bars[bars.length - 1];
+            try {
+                const res = await fetch(`https://api.twelvedata.com/price?symbol=${SYMBOL}&apikey=${API_KEY}`);
+                const data = await res.json();
+                const price = parseFloat(data.price);
+                
+                const nowTimestamp = Math.floor(Date.now() / 1000);
+                const currentM15 = Math.floor(nowTimestamp / 900) * 900;
+                
+                const lastBar = candleSeries.data().slice(-1)[0];
 
-            if (lastBar && lastBar.time * 1000 === currentM15) {
-                candleSeries.update({
-                    time: lastBar.time, open: lastBar.open,
-                    high: Math.max(lastBar.high, price), low: Math.min(lastBar.low, price),
-                    close: price
-                });
-            } else {
-                candleSeries.update({ time: currentM15 / 1000, open: price, high: price, low: price, close: price });
-            }
+                if (lastBar && lastBar.time === currentM15) {
+                    candleSeries.update({
+                        time: lastBar.time, open: lastBar.open,
+                        high: Math.max(lastBar.high, price), low: Math.min(lastBar.low, price),
+                        close: price
+                    });
+                } else {
+                    candleSeries.update({ time: currentM15, open: price, high: price, low: price, close: price });
+                }
 
-            // Lógica de estrategia
-            priceHistory.push(price);
-            if(priceHistory.length > 20) priceHistory.shift();
-            const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
-            const atr = Math.abs(price - (priceHistory[priceHistory.length-2] || price)) * 2;
-            const isBullish = price > trama;
-            
-            // UI y Bitácora
-            document.getElementById('signal-display').innerText = isBullish ? "COMPRA" : "VENTA";
-            document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
-            document.getElementById('price-val').innerText = "$" + price.toFixed(2);
-            document.getElementById('atr-val').innerText = atr.toFixed(2);
-            document.getElementById('sl-val').innerText = (isBullish ? price - (atr*1.5) : price + (atr*1.5)).toFixed(2);
-            document.getElementById('tp-val').innerText = (isBullish ? price + (atr*3) : price - (atr*3)).toFixed(2);
+                priceHistory.push(price);
+                if(priceHistory.length > 20) priceHistory.shift();
+                const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
+                const atr = Math.abs(price - (priceHistory[priceHistory.length-2] || price)) * 2;
+                const isBullish = price > trama;
+                
+                document.getElementById('signal-display').innerText = isBullish ? "COMPRA" : "VENTA";
+                document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
+                document.getElementById('price-val').innerText = "$" + price.toFixed(2);
+                document.getElementById('atr-val').innerText = atr.toFixed(2);
+                document.getElementById('sl-val').innerText = (isBullish ? price - (atr*1.5) : price + (atr*1.5)).toFixed(2);
+                document.getElementById('tp-val').innerText = (isBullish ? price + (atr*3) : price - (atr*3)).toFixed(2);
 
-            if (currentM15 !== lastCandleTime) {
-                lastCandleTime = currentM15;
-                if(signalHistory.length > 0) totalPL += (isBullish ? (price - signalHistory[0].price) : (signalHistory[0].price - price));
-                signalHistory.unshift({time: new Date().toLocaleTimeString(), type: isBullish ? "COMPRA" : "VENTA", price});
-                if(signalHistory.length > 5) signalHistory.pop();
-                document.getElementById('signal-log').innerHTML = signalHistory.map(e => `<div class="log-entry">${e.time} | ${e.type} @ ${e.price.toFixed(2)}</div>`).join('');
-                document.getElementById('pl-val').innerText = totalPL.toFixed(2);
-            }
+                if (currentM15 !== lastCandleTime) {
+                    lastCandleTime = currentM15;
+                    if(signalHistory.length > 0) totalPL += (isBullish ? (price - signalHistory[0].price) : (signalHistory[0].price - price));
+                    signalHistory.unshift({time: new Date().toLocaleTimeString(), type: isBullish ? "COMPRA" : "VENTA", price});
+                    if(signalHistory.length > 5) signalHistory.pop();
+                    document.getElementById('signal-log').innerHTML = signalHistory.map(e => `<div class="log-entry">${e.time} | ${e.type} @ ${e.price.toFixed(2)}</div>`).join('');
+                    document.getElementById('pl-val').innerText = totalPL.toFixed(2);
+                }
+            } catch(e) { console.error("Error actualizando:", e); }
         }
         init();
     </script>
