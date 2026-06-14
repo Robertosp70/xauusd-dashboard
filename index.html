@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Intradía M15 - Final Profesional</title>
+    <title>XAUUSD Intradía M15 - Final Definitivo</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background: #0c0d14; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; padding: 20px; gap: 20px; }
@@ -34,21 +34,35 @@
         const chart = LightweightCharts.createChart(document.getElementById('chart'), { layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#fff' } });
         const candleSeries = chart.addCandlestickSeries();
         let priceHistory = [], signalHistory = [], lastCandleTime = 0, totalPL = 0;
+        let localBars = [];
 
         const API_KEY = '9dabd1ea8afb4071bee53ee0552711ed';
         const SYMBOL = 'XAU/USD';
 
         async function init() {
             try {
-                const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${SYMBOL}&interval=15min&outputsize=50&apikey=${API_KEY}`);
+                // Forzamos zona horaria UTC para que cuadre perfecto con Lightweight Charts
+                const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${SYMBOL}&interval=15min&outputsize=50&apikey=${API_KEY}&timezone=UTC`);
                 const data = await res.json();
-                const hist = data.values.reverse().map(i => ({
-                    time: Math.floor(new Date(i.datetime).getTime() / 1000),
-                    open: parseFloat(i.open), high: parseFloat(i.high), low: parseFloat(i.low), close: parseFloat(i.close)
-                }));
-                candleSeries.setData(hist);
-                priceHistory = hist.map(c => c.close);
-                setInterval(update, 10000);
+                
+                if(!data.values) {
+                    document.getElementById('signal-display').innerText = "ERROR API (Límite)";
+                    return;
+                }
+
+                localBars = data.values.reverse().map(i => {
+                    // Conversión estricta a Timestamp UNIX desde la fecha UTC
+                    const timeUTC = new Date(i.datetime.replace(' ', 'T') + 'Z').getTime() / 1000;
+                    return {
+                        time: timeUTC,
+                        open: parseFloat(i.open), high: parseFloat(i.high), low: parseFloat(i.low), close: parseFloat(i.close)
+                    };
+                });
+                
+                candleSeries.setData(localBars);
+                priceHistory = localBars.map(c => c.close); // Historial de cierres limpios
+                
+                setInterval(update, 15000); // 15 segundos protege tu límite gratuito de la API
             } catch(e) { console.error("Error inicializando:", e); }
         }
 
@@ -56,36 +70,42 @@
             try {
                 const res = await fetch(`https://api.twelvedata.com/price?symbol=${SYMBOL}&apikey=${API_KEY}`);
                 const data = await res.json();
+                
+                // PROTECCIÓN CRÍTICA: Si el precio no existe (Límite API), salimos sin corromper el gráfico
+                if (!data.price) return; 
+                
                 const price = parseFloat(data.price);
                 
                 const nowTimestamp = Math.floor(Date.now() / 1000);
-                const currentM15 = Math.floor(nowTimestamp / 900) * 900;
-                
-                const lastBar = candleSeries.data().slice(-1)[0];
+                const currentM15 = Math.floor(nowTimestamp / 900) * 900; 
+                let lastBar = localBars[localBars.length - 1];
 
-                // PROTECCIÓN CRÍTICA: Solo actualizamos si el tiempo es >= al último registrado
                 if (lastBar) {
                     if (currentM15 > lastBar.time) {
-                        // Es una vela nueva, añadimos
-                        candleSeries.update({ time: currentM15, open: price, high: price, low: price, close: price });
-                    } else {
-                        // Es la misma vela, actualizamos valores
-                        candleSeries.update({
-                            time: lastBar.time,
-                            open: lastBar.open,
-                            high: Math.max(lastBar.high, price),
-                            low: Math.min(lastBar.low, price),
-                            close: price
-                        });
+                        // Nace una vela nueva
+                        const newBar = { time: currentM15, open: price, high: price, low: price, close: price };
+                        localBars.push(newBar);
+                        candleSeries.update(newBar);
+                        
+                        // Guardamos el cierre definitivo de la vela anterior
+                        priceHistory.push(lastBar.close);
+                        if(priceHistory.length > 20) priceHistory.shift();
+                    } else if (currentM15 === lastBar.time) {
+                        // Actualizamos la vela actual viva
+                        lastBar.high = Math.max(lastBar.high, price);
+                        lastBar.low = Math.min(lastBar.low, price);
+                        lastBar.close = price;
+                        candleSeries.update(lastBar);
                     }
                 }
 
-                priceHistory.push(price);
-                if(priceHistory.length > 20) priceHistory.shift();
-                const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
-                const atr = Math.abs(price - (priceHistory[priceHistory.length-2] || price)) * 2;
+                // Cálculos técnicos aislados del error
+                const currentPrices = [...priceHistory.slice(-19), price];
+                const trama = currentPrices.reduce((a,b) => a+b, 0) / currentPrices.length;
+                const atr = Math.abs(price - (currentPrices[currentPrices.length-2] || price)) * 2;
                 const isBullish = price > trama;
                 
+                // Actualizar interfaz
                 document.getElementById('signal-display').innerText = isBullish ? "COMPRA" : "VENTA";
                 document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
                 document.getElementById('price-val').innerText = "$" + price.toFixed(2);
@@ -101,7 +121,7 @@
                     document.getElementById('signal-log').innerHTML = signalHistory.map(e => `<div class="log-entry">${e.time} | ${e.type} @ ${e.price.toFixed(2)}</div>`).join('');
                     document.getElementById('pl-val').innerText = totalPL.toFixed(2);
                 }
-            } catch(e) { /* Silenciamos errores de red momentáneos */ }
+            } catch(e) { console.error("Silenciando error de red temporal..."); }
         }
         init();
     </script>
