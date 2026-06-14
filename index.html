@@ -18,10 +18,10 @@
     <div id="chart"></div>
     <div id="panel">
         <h2>Dashboard M15</h2>
-        <div id="signal-display" class="signal-box">CARGANDO M15...</div>
+        <div id="signal-display" class="signal-box">INICIANDO...</div>
         
         <div class="data-row"><span>Precio:</span> <b id="price-val">---</b></div>
-        <div class="data-row"><span>ATR (M15 Vol):</span> <b id="atr-val">---</b></div>
+        <div class="data-row"><span>ATR (Volatilidad):</span> <b id="atr-val">---</b></div>
         <div class="data-row"><span>SL Dinámico:</span> <b id="sl-val">---</b></div>
         <div class="data-row"><span>TP Dinámico:</span> <b id="tp-val">---</b></div>
         <div class="data-row"><span>P/L Acumulado:</span> <b id="pl-val">0.00</b></div>
@@ -55,25 +55,37 @@
             const data = await res.json();
             const price = parseFloat(data.price);
             
-            // Cálculos
+            // Gestión de velas dinámicas M15
+            const now = new Date();
+            const currentM15 = Math.floor(now.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000);
+            const bars = candleSeries.data();
+            const lastBar = bars[bars.length - 1];
+
+            if (lastBar && lastBar.time * 1000 === currentM15) {
+                candleSeries.update({
+                    time: lastBar.time, open: lastBar.open,
+                    high: Math.max(lastBar.high, price), low: Math.min(lastBar.low, price),
+                    close: price
+                });
+            } else {
+                candleSeries.update({ time: currentM15 / 1000, open: price, high: price, low: price, close: price });
+            }
+
+            // Lógica de estrategia
+            priceHistory.push(price);
+            if(priceHistory.length > 20) priceHistory.shift();
             const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
             const atr = Math.abs(price - (priceHistory[priceHistory.length-2] || price)) * 2;
             const isBullish = price > trama;
             
-            // SL y TP Dinámicos
-            const sl = isBullish ? (price - (atr * 1.5)) : (price + (atr * 1.5));
-            const tp = isBullish ? (price + (atr * 3)) : (price - (atr * 3));
-            
-            // UI
+            // UI y Bitácora
             document.getElementById('signal-display').innerText = isBullish ? "COMPRA" : "VENTA";
             document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
             document.getElementById('price-val').innerText = "$" + price.toFixed(2);
             document.getElementById('atr-val').innerText = atr.toFixed(2);
-            document.getElementById('sl-val').innerText = sl.toFixed(2);
-            document.getElementById('tp-val').innerText = tp.toFixed(2);
+            document.getElementById('sl-val').innerText = (isBullish ? price - (atr*1.5) : price + (atr*1.5)).toFixed(2);
+            document.getElementById('tp-val').innerText = (isBullish ? price + (atr*3) : price - (atr*3)).toFixed(2);
 
-            // Bitácora sincronizada M15
-            const currentM15 = Math.floor(Date.now() / (15 * 60 * 1000));
             if (currentM15 !== lastCandleTime) {
                 lastCandleTime = currentM15;
                 if(signalHistory.length > 0) totalPL += (isBullish ? (price - signalHistory[0].price) : (signalHistory[0].price - price));
