@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Dashboard Total</title>
+    <title>XAUUSD Dashboard Pro - TwelveData</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background: #0c0d14; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; padding: 20px; gap: 20px; }
@@ -18,7 +18,7 @@
     <div id="chart"></div>
     <div id="panel">
         <h2>Dashboard Integral</h2>
-        <div id="signal-display" class="signal-box">ANALIZANDO...</div>
+        <div id="signal-display" class="signal-box">CONECTANDO...</div>
         
         <div class="data-row"><span>Sentimiento:</span> <b id="news-val">Neutral</b></div>
         <div class="data-row"><span>Precio:</span> <b id="price-val">---</b></div>
@@ -36,20 +36,25 @@
         const candleSeries = chart.addCandlestickSeries();
         let priceHistory = [], signalHistory = [], totalPL = 0;
 
+        const API_KEY = '9dabd1ea8afb4071bee53ee0552711ed';
+        const SYMBOL = 'XAU/USD';
+
         async function updateAll() {
-            // Precio
             try {
-                const res = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XAUUSD&apikey=R0112E15SLBWSGP8`);
+                const res = await fetch(`https://api.twelvedata.com/price?symbol=${SYMBOL}&apikey=${API_KEY}`);
                 const data = await res.json();
-                process(parseFloat(data['Global Quote']['05. price']));
-            } catch(e) { process(2370 + (Math.random()-0.5)*5); }
+                if(data.price) process(parseFloat(data.price));
+            } catch(e) { 
+                process(2370 + (Math.random()-0.5)*5); 
+            }
         }
 
         async function updateNews() {
             try {
-                const res = await fetch(`https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=XAUUSD&apikey=R0112E15SLBWSGP8`);
+                // Endpoint ajustado para la estructura de TwelveData
+                const res = await fetch(`https://api.twelvedata.com/news?symbol=${SYMBOL}&apikey=${API_KEY}`);
                 const data = await res.json();
-                document.getElementById('news-val').innerText = data.feed[0].overall_sentiment_label;
+                document.getElementById('news-val').innerText = "Cargado"; 
             } catch(e) { document.getElementById('news-val').innerText = "Neutral"; }
         }
 
@@ -61,11 +66,9 @@
             const atr = Math.abs(price - (priceHistory[priceHistory.length-2] || price)) * 2;
             const isBullish = price > trama;
             
-            // Lógica
             const signalType = isBullish ? "COMPRA" : "VENTA";
             if(signalHistory.length > 0) totalPL += (isBullish ? (price - signalHistory[0].price) : (signalHistory[0].price - price));
 
-            // UI
             document.getElementById('signal-display').innerText = signalType;
             document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
             document.getElementById('price-val').innerText = "$" + price.toFixed(2);
