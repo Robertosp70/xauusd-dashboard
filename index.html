@@ -1,19 +1,21 @@
-// Estructura para cálculo de TRAMA y Señales
-async function calculateStrategy(dataPoints) {
-    // 1. Calcular TRAMA (Media Móvil Adaptativa)
-    // La fórmula ajusta el peso según la volatilidad reciente
-    const trama = dataPoints.map((val, i) => {
-        // Lógica de suavizado TRAMA aquí
-        return val.close * 0.99; // Placeholder para el cálculo matemático
-    });
-
-    // 2. Ejecutar estrategia UAlgo
-    const lastPrice = dataPoints[dataPoints.length - 1].close;
-    const lastTrama = trama[trama.length - 1];
-
-    if (lastPrice > lastTrama) {
-        return { signal: "COMPRA", sl: lastPrice * 0.99, tp: lastPrice * 1.02 };
-    } else {
-        return { signal: "VENTA", sl: lastPrice * 1.01, tp: lastPrice * 0.98 };
+async function fetchMarketData() {
+    const apiKey = 'R0112E15SLBWSGP8';
+    const symbol = 'XAUUSD';
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        // Verificación lógica: ¿Llegaron los datos?
+        if (data['Global Quote'] && data['Global Quote']['05. price']) {
+            const price = parseFloat(data['Global Quote']['05. price']);
+            console.log("Precio obtenido:", price); // Esto lo verás en la consola (F12)
+            return price;
+        } else {
+            console.error("Error: Estructura de datos inesperada o límite de API alcanzado.");
+        }
+    } catch (error) {
+        console.error("Error de conexión:", error);
     }
 }
