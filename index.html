@@ -20,9 +20,10 @@
         <h2>Dashboard M15</h2>
         <div id="signal-display" class="signal-box">CARGANDO M15...</div>
         
-        <div class="data-row"><span>Sentimiento:</span> <b id="news-val">Neutral</b></div>
         <div class="data-row"><span>Precio:</span> <b id="price-val">---</b></div>
-        <div class="data-row"><span>ATR (M15):</span> <b id="atr-val">---</b></div>
+        <div class="data-row"><span>ATR (M15 Vol):</span> <b id="atr-val">---</b></div>
+        <div class="data-row"><span>SL Dinámico:</span> <b id="sl-val">---</b></div>
+        <div class="data-row"><span>TP Dinámico:</span> <b id="tp-val">---</b></div>
         <div class="data-row"><span>P/L Acumulado:</span> <b id="pl-val">0.00</b></div>
 
         <h3>Bitácora (Cierres M15)</h3>
@@ -32,27 +33,20 @@
     <script>
         const chart = LightweightCharts.createChart(document.getElementById('chart'), { layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#fff' } });
         const candleSeries = chart.addCandlestickSeries();
-        let priceHistory = [], signalHistory = [], lastCandleTime = 0;
+        let priceHistory = [], signalHistory = [], lastCandleTime = 0, totalPL = 0;
 
         const API_KEY = '9dabd1ea8afb4071bee53ee0552711ed';
         const SYMBOL = 'XAU/USD';
 
         async function init() {
-            // 1. Cargar historial M15 real de TwelveData
             const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${SYMBOL}&interval=15min&outputsize=50&apikey=${API_KEY}`);
             const data = await res.json();
-            const historicalData = data.values.reverse().map(item => ({
-                time: Math.floor(new Date(item.datetime).getTime() / 1000),
-                open: parseFloat(item.open),
-                high: parseFloat(item.high),
-                low: parseFloat(item.low),
-                close: parseFloat(item.close)
+            const hist = data.values.reverse().map(i => ({
+                time: Math.floor(new Date(i.datetime).getTime() / 1000),
+                open: parseFloat(i.open), high: parseFloat(i.high), low: parseFloat(i.low), close: parseFloat(i.close)
             }));
-            
-            candleSeries.setData(historicalData);
-            priceHistory = historicalData.map(c => c.close);
-            
-            // Iniciar actualizaciones
+            candleSeries.setData(hist);
+            priceHistory = hist.map(c => c.close);
             setInterval(update, 10000);
         }
 
@@ -61,25 +55,34 @@
             const data = await res.json();
             const price = parseFloat(data.price);
             
+            // Cálculos
             const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
+            const atr = Math.abs(price - (priceHistory[priceHistory.length-2] || price)) * 2;
             const isBullish = price > trama;
             
-            // Actualizar UI
+            // SL y TP Dinámicos
+            const sl = isBullish ? (price - (atr * 1.5)) : (price + (atr * 1.5));
+            const tp = isBullish ? (price + (atr * 3)) : (price - (atr * 3));
+            
+            // UI
             document.getElementById('signal-display').innerText = isBullish ? "COMPRA" : "VENTA";
             document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
             document.getElementById('price-val').innerText = "$" + price.toFixed(2);
-            
-            // Bitácora sincronizada con cierres M15 (cada 15 min)
+            document.getElementById('atr-val').innerText = atr.toFixed(2);
+            document.getElementById('sl-val').innerText = sl.toFixed(2);
+            document.getElementById('tp-val').innerText = tp.toFixed(2);
+
+            // Bitácora sincronizada M15
             const currentM15 = Math.floor(Date.now() / (15 * 60 * 1000));
             if (currentM15 !== lastCandleTime) {
                 lastCandleTime = currentM15;
+                if(signalHistory.length > 0) totalPL += (isBullish ? (price - signalHistory[0].price) : (signalHistory[0].price - price));
                 signalHistory.unshift({time: new Date().toLocaleTimeString(), type: isBullish ? "COMPRA" : "VENTA", price});
                 if(signalHistory.length > 5) signalHistory.pop();
-                document.getElementById('signal-log').innerHTML = signalHistory.map(e => 
-                    `<div class="log-entry">${e.time} | ${e.type} @ ${e.price.toFixed(2)}</div>`).join('');
+                document.getElementById('signal-log').innerHTML = signalHistory.map(e => `<div class="log-entry">${e.time} | ${e.type} @ ${e.price.toFixed(2)}</div>`).join('');
+                document.getElementById('pl-val').innerText = totalPL.toFixed(2);
             }
         }
-
         init();
     </script>
 </body>
