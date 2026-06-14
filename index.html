@@ -1,21 +1,53 @@
-async function fetchMarketData() {
-    const apiKey = 'R0112E15SLBWSGP8';
-    const symbol = 'XAUUSD';
-    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`;
-    
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        // Verificación lógica: ¿Llegaron los datos?
-        if (data['Global Quote'] && data['Global Quote']['05. price']) {
-            const price = parseFloat(data['Global Quote']['05. price']);
-            console.log("Precio obtenido:", price); // Esto lo verás en la consola (F12)
-            return price;
-        } else {
-            console.error("Error: Estructura de datos inesperada o límite de API alcanzado.");
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>XAUUSD Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body { background: #0c0d14; color: #fff; font-family: sans-serif; display: flex; padding: 20px; }
+        #chart { width: 70%; height: 500px; }
+        #panel { width: 30%; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="chart"></div>
+    <div id="panel">
+        <h2>Estado</h2>
+        <div id="status">ANALIZANDO...</div>
+    </div>
+
+    <script>
+        // Inicialización del gráfico
+        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+            layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#fff' }
+        });
+        const candleSeries = chart.addCandlestickSeries();
+
+        // Función de conexión a la API
+        async function fetchMarketData() {
+            const apiKey = 'R0112E15SLBWSGP8';
+            const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XAUUSD&apikey=${apiKey}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data['Global Quote'] && data['Global Quote']['05. price']) {
+                    const price = parseFloat(data['Global Quote']['05. price']);
+                    document.getElementById('status').innerText = "Precio Actual: " + price;
+                    console.log("Precio obtenido:", price);
+                } else {
+                    document.getElementById('status').innerText = "Error: API Límite excedido o datos no encontrados";
+                }
+            } catch (error) {
+                document.getElementById('status').innerText = "Error de conexión";
+            }
         }
-    } catch (error) {
-        console.error("Error de conexión:", error);
-    }
-}
+
+        // Ejecutar conexión
+        fetchMarketData();
+    </script>
+</body>
+</html>
