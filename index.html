@@ -2,13 +2,16 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Dashboard Pro Integrado</title>
+    <title>XAUUSD Dashboard Auditoría</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background: #0c0d14; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; padding: 20px; gap: 20px; }
         #chart { width: 70%; height: 500px; background: #161a25; border-radius: 8px; border: 1px solid #2a2e39; }
         #panel { width: 30%; background: #161a25; padding: 20px; border-radius: 8px; border: 1px solid #2a2e39; }
         .signal-box { padding: 20px; text-align: center; font-weight: bold; font-size: 1.5em; border-radius: 5px; margin-bottom: 20px; }
+        /* Estilos de la Bitácora */
+        .log-container { margin-top: 20px; font-size: 0.8em; border-top: 1px solid #2a2e39; pt: 10px; }
+        .log-entry { padding: 5px 0; border-bottom: 1px solid #2a2e39; color: #aaa; }
     </style>
 </head>
 <body>
@@ -17,29 +20,32 @@
     <div id="panel">
         <h2>Panel de Estrategia</h2>
         <div id="signal-display" class="signal-box">ANALIZANDO...</div>
-        <p>Precio Actual: <span id="price-val">---</span></p>
-        <p>SL Sugerido: <span id="sl-val">---</span></p>
-        <p>TP Sugerido: <span id="tp-val">---</span></p>
-        <div id="status" style="font-size: 0.8em; color: #666; margin-top: 20px;">Iniciando sistema...</div>
+        <p>Precio: <span id="price-val">---</span></p>
+        
+        <div class="log-container">
+            <h3>Bitácora de Señales (Últimas 5)</h3>
+            <div id="signal-log"></div>
+        </div>
+        <div id="status" style="font-size: 0.7em; color: #666; margin-top: 20px;">Iniciando auditoría...</div>
     </div>
 
     <script>
         const chart = LightweightCharts.createChart(document.getElementById('chart'), { layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#fff' } });
         const candleSeries = chart.addCandlestickSeries();
         let priceHistory = [];
+        let signalHistory = [];
 
         async function updateDashboard() {
             try {
                 const res = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XAUUSD&apikey=R0112E15SLBWSGP8`);
                 const data = await res.json();
-                
                 if (data['Global Quote'] && data['Global Quote']['05. price']) {
                     const price = parseFloat(data['Global Quote']['05. price']);
                     processStrategy(price);
                     document.getElementById('status').innerText = "Estado: Conectado (API Real)";
                 } else { throw new Error(); }
             } catch (e) {
-                document.getElementById('status').innerText = "Estado: Modo Simulación (Límite API)";
+                document.getElementById('status').innerText = "Estado: Modo Simulación";
                 processStrategy(2370 + (Math.random()-0.5)*5);
             }
         }
@@ -48,19 +54,22 @@
             priceHistory.push(price);
             if(priceHistory.length > 20) priceHistory.shift();
             
-            // Cálculo TRAMA (Media adaptativa simple)
             const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
-            
-            // Estrategia UAlgo
             const isBullish = price > trama;
+            
+            // Actualizar UI
             const signalBox = document.getElementById('signal-display');
-            
-            signalBox.innerText = isBullish ? "COMPRA" : "VENTA";
+            const signalType = isBullish ? "COMPRA" : "VENTA";
+            signalBox.innerText = signalType;
             signalBox.style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
-            
             document.getElementById('price-val').innerText = "$" + price.toFixed(2);
-            document.getElementById('sl-val').innerText = isBullish ? (price * 0.995).toFixed(2) : (price * 1.005).toFixed(2);
-            document.getElementById('tp-val').innerText = isBullish ? (price * 1.015).toFixed(2) : (price * 0.985).toFixed(2);
+
+            // Gestión de la Bitácora
+            const timestamp = new Date().toLocaleTimeString();
+            signalHistory.unshift(`${timestamp} | ${signalType} @ ${price.toFixed(2)}`);
+            if(signalHistory.length > 5) signalHistory.pop();
+            
+            document.getElementById('signal-log').innerHTML = signalHistory.map(entry => `<div class="log-entry">${entry}</div>`).join('');
 
             candleSeries.update({ time: Math.floor(Date.now()/1000), open: price-0.5, high: price+1, low: price-1, close: price });
         }
