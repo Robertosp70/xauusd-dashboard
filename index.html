@@ -2,32 +2,32 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Dashboard Auditoría Pro</title>
+    <title>XAUUSD Dashboard Pro - Final</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background: #0c0d14; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; padding: 20px; gap: 20px; }
         #chart { width: 70%; height: 500px; background: #161a25; border-radius: 8px; border: 1px solid #2a2e39; }
         #panel { width: 30%; background: #161a25; padding: 20px; border-radius: 8px; border: 1px solid #2a2e39; }
-        .signal-box { padding: 15px; text-align: center; font-weight: bold; font-size: 1.2em; border-radius: 5px; margin-bottom: 10px; }
-        .perf-box { background: #1f2532; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9em; }
-        .log-entry { padding: 5px 0; border-bottom: 1px solid #2a2e39; font-size: 0.8em; }
+        .signal-box { padding: 20px; text-align: center; font-weight: bold; font-size: 1.4em; border-radius: 5px; margin-bottom: 15px; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9em; }
+        .log-entry { padding: 5px 0; border-bottom: 1px solid #2a2e39; font-size: 0.8em; color: #aaa; }
     </style>
 </head>
 <body>
 
     <div id="chart"></div>
     <div id="panel">
-        <h2>Panel de Estrategia</h2>
+        <h2>Estrategia TRAMA + ATR</h2>
         <div id="signal-display" class="signal-box">ANALIZANDO...</div>
         
-        <div class="perf-box">
-            <h3>Rendimiento Teórico</h3>
-            <div id="perf-val">P/L Acumulado: 0.00</div>
-        </div>
+        <div class="data-row"><span>Precio:</span> <b id="price-val">---</b></div>
+        <div class="data-row"><span>ATR (Volatilidad):</span> <b id="atr-val">---</b></div>
+        <div class="data-row"><span>SL Dinámico:</span> <b id="sl-val">---</b></div>
+        <div class="data-row"><span>TP Dinámico:</span> <b id="tp-val">---</b></div>
+        <div class="data-row"><span>P/L Acumulado:</span> <b id="pl-val">0.00</b></div>
 
-        <h3>Bitácora (Últimas 5)</h3>
+        <h3>Bitácora de Señales</h3>
         <div id="signal-log"></div>
-        <div id="status" style="font-size: 0.7em; color: #666; margin-top: 10px;">Sistema Activo</div>
     </div>
 
     <script>
@@ -35,49 +35,53 @@
         const candleSeries = chart.addCandlestickSeries();
         let priceHistory = [], signalHistory = [], totalPL = 0;
 
-        async function updateDashboard() {
+        async function update() {
             try {
                 const res = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XAUUSD&apikey=R0112E15SLBWSGP8`);
                 const data = await res.json();
-                const price = parseFloat(data['Global Quote']['05. price']);
-                processStrategy(price);
+                process(parseFloat(data['Global Quote']['05. price']));
             } catch (e) {
-                processStrategy(2370 + (Math.random()-0.5)*5);
+                process(2370 + (Math.random()-0.5)*5);
             }
         }
 
-        function processStrategy(price) {
+        function process(price) {
             priceHistory.push(price);
             if(priceHistory.length > 20) priceHistory.shift();
             
             const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
+            const atr = Math.abs(price - (priceHistory[priceHistory.length-2] || price)) * 2;
             const isBullish = price > trama;
-            const signalType = isBullish ? "COMPRA" : "VENTA";
             
-            // Lógica de Performance
+            // Cálculos dinámicos
+            const sl = isBullish ? (price - (atr * 1.5)) : (price + (atr * 1.5));
+            const tp = isBullish ? (price + (atr * 3)) : (price - (atr * 3));
+            
             if(signalHistory.length > 0) {
                 const last = signalHistory[0];
-                const diff = (signalType === "COMPRA") ? (price - last.price) : (last.price - price);
-                totalPL += diff;
+                totalPL += (isBullish ? (price - last.price) : (last.price - price));
             }
 
             // Actualizar UI
-            document.getElementById('signal-display').innerText = signalType;
+            document.getElementById('signal-display').innerText = isBullish ? "COMPRA" : "VENTA";
             document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
-            document.getElementById('perf-val').innerText = "P/L Acumulado: " + totalPL.toFixed(2);
+            document.getElementById('price-val').innerText = "$" + price.toFixed(2);
+            document.getElementById('atr-val').innerText = atr.toFixed(2);
+            document.getElementById('sl-val').innerText = sl.toFixed(2);
+            document.getElementById('tp-val').innerText = tp.toFixed(2);
+            document.getElementById('pl-val').innerText = totalPL.toFixed(2);
 
-            const timestamp = new Date().toLocaleTimeString();
-            signalHistory.unshift({time: timestamp, type: signalType, price: price});
+            const time = new Date().toLocaleTimeString();
+            signalHistory.unshift({time, type: isBullish ? "COMPRA" : "VENTA", price});
             if(signalHistory.length > 5) signalHistory.pop();
-            
-            document.getElementById('signal-log').innerHTML = signalHistory.map(entry => 
-                `<div class="log-entry">${entry.time} | ${entry.type} @ ${entry.price.toFixed(2)}</div>`).join('');
+            document.getElementById('signal-log').innerHTML = signalHistory.map(e => 
+                `<div class="log-entry">${e.time} | ${e.type} @ ${e.price.toFixed(2)}</div>`).join('');
 
             candleSeries.update({ time: Math.floor(Date.now()/1000), open: price-0.5, high: price+1, low: price-1, close: price });
         }
 
-        setInterval(updateDashboard, 5000);
-        updateDashboard();
+        setInterval(update, 5000);
+        update();
     </script>
 </body>
 </html>
