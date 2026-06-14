@@ -2,16 +2,15 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>XAUUSD Dashboard Auditoría</title>
+    <title>XAUUSD Dashboard Auditoría Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background: #0c0d14; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; padding: 20px; gap: 20px; }
         #chart { width: 70%; height: 500px; background: #161a25; border-radius: 8px; border: 1px solid #2a2e39; }
         #panel { width: 30%; background: #161a25; padding: 20px; border-radius: 8px; border: 1px solid #2a2e39; }
-        .signal-box { padding: 20px; text-align: center; font-weight: bold; font-size: 1.5em; border-radius: 5px; margin-bottom: 20px; }
-        /* Estilos de la Bitácora */
-        .log-container { margin-top: 20px; font-size: 0.8em; border-top: 1px solid #2a2e39; pt: 10px; }
-        .log-entry { padding: 5px 0; border-bottom: 1px solid #2a2e39; color: #aaa; }
+        .signal-box { padding: 15px; text-align: center; font-weight: bold; font-size: 1.2em; border-radius: 5px; margin-bottom: 10px; }
+        .perf-box { background: #1f2532; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9em; }
+        .log-entry { padding: 5px 0; border-bottom: 1px solid #2a2e39; font-size: 0.8em; }
     </style>
 </head>
 <body>
@@ -20,32 +19,29 @@
     <div id="panel">
         <h2>Panel de Estrategia</h2>
         <div id="signal-display" class="signal-box">ANALIZANDO...</div>
-        <p>Precio: <span id="price-val">---</span></p>
         
-        <div class="log-container">
-            <h3>Bitácora de Señales (Últimas 5)</h3>
-            <div id="signal-log"></div>
+        <div class="perf-box">
+            <h3>Rendimiento Teórico</h3>
+            <div id="perf-val">P/L Acumulado: 0.00</div>
         </div>
-        <div id="status" style="font-size: 0.7em; color: #666; margin-top: 20px;">Iniciando auditoría...</div>
+
+        <h3>Bitácora (Últimas 5)</h3>
+        <div id="signal-log"></div>
+        <div id="status" style="font-size: 0.7em; color: #666; margin-top: 10px;">Sistema Activo</div>
     </div>
 
     <script>
         const chart = LightweightCharts.createChart(document.getElementById('chart'), { layout: { background: { type: 'solid', color: '#161a25' }, textColor: '#fff' } });
         const candleSeries = chart.addCandlestickSeries();
-        let priceHistory = [];
-        let signalHistory = [];
+        let priceHistory = [], signalHistory = [], totalPL = 0;
 
         async function updateDashboard() {
             try {
                 const res = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=XAUUSD&apikey=R0112E15SLBWSGP8`);
                 const data = await res.json();
-                if (data['Global Quote'] && data['Global Quote']['05. price']) {
-                    const price = parseFloat(data['Global Quote']['05. price']);
-                    processStrategy(price);
-                    document.getElementById('status').innerText = "Estado: Conectado (API Real)";
-                } else { throw new Error(); }
+                const price = parseFloat(data['Global Quote']['05. price']);
+                processStrategy(price);
             } catch (e) {
-                document.getElementById('status').innerText = "Estado: Modo Simulación";
                 processStrategy(2370 + (Math.random()-0.5)*5);
             }
         }
@@ -56,20 +52,26 @@
             
             const trama = priceHistory.reduce((a,b) => a+b, 0) / priceHistory.length;
             const isBullish = price > trama;
-            
-            // Actualizar UI
-            const signalBox = document.getElementById('signal-display');
             const signalType = isBullish ? "COMPRA" : "VENTA";
-            signalBox.innerText = signalType;
-            signalBox.style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
-            document.getElementById('price-val').innerText = "$" + price.toFixed(2);
+            
+            // Lógica de Performance
+            if(signalHistory.length > 0) {
+                const last = signalHistory[0];
+                const diff = (signalType === "COMPRA") ? (price - last.price) : (last.price - price);
+                totalPL += diff;
+            }
 
-            // Gestión de la Bitácora
+            // Actualizar UI
+            document.getElementById('signal-display').innerText = signalType;
+            document.getElementById('signal-display').style.backgroundColor = isBullish ? "#00e676" : "#ff5252";
+            document.getElementById('perf-val').innerText = "P/L Acumulado: " + totalPL.toFixed(2);
+
             const timestamp = new Date().toLocaleTimeString();
-            signalHistory.unshift(`${timestamp} | ${signalType} @ ${price.toFixed(2)}`);
+            signalHistory.unshift({time: timestamp, type: signalType, price: price});
             if(signalHistory.length > 5) signalHistory.pop();
             
-            document.getElementById('signal-log').innerHTML = signalHistory.map(entry => `<div class="log-entry">${entry}</div>`).join('');
+            document.getElementById('signal-log').innerHTML = signalHistory.map(entry => 
+                `<div class="log-entry">${entry.time} | ${entry.type} @ ${entry.price.toFixed(2)}</div>`).join('');
 
             candleSeries.update({ time: Math.floor(Date.now()/1000), open: price-0.5, high: price+1, low: price-1, close: price });
         }
